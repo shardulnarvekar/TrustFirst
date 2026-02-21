@@ -6,7 +6,7 @@ import connectDB from '@/lib/mongodb';
 import Notification from '@/models/Notification';
 import { render } from '@react-email/render';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function POST(request: NextRequest) {
     try {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         );
 
         // 2. Send Email via Resend
-        if (process.env.RESEND_API_KEY) {
+        if (resend && process.env.RESEND_API_KEY) {
             try {
                 await resend.emails.send({
                     from: 'Setu AI <onboarding@resend.dev>', // In production, use your verified domain
