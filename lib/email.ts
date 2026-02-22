@@ -33,6 +33,11 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   }
 }
 
+// Helper function to get the app URL
+const getAppUrl = () => {
+  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://trust-first-ivy.vercel.app';
+};
+
 // Email Templates
 export const emailTemplates = {
   agreementRequest: (lenderName: string, borrowerName: string, amount: number, dueDate: string, agreementId: string, upiLink?: string, qrCodeDataUrl?: string) => ({
@@ -72,7 +77,7 @@ export const emailTemplates = {
               <p>Please review and acknowledge this agreement in your TrustFirst dashboard.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
+                <a href="${getAppUrl()}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
               </div>
 
               ${upiLink ? `
@@ -141,7 +146,7 @@ export const emailTemplates = {
               <p>Please review and approve this witness request in your TrustFirst dashboard.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/agreement/${agreementId}" class="button">Review & Approve</a>
+                <a href="${getAppUrl()}/dashboard/agreement/${agreementId}" class="button">Review & Approve</a>
               </div>
 
               <p style="color: #6b7280; font-size: 14px;">As a witness, you're helping maintain trust in informal lending.</p>
@@ -188,7 +193,7 @@ export const emailTemplates = {
               <p>Your agreement now has witness verification, adding an extra layer of trust and credibility.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
+                <a href="${getAppUrl()}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
               </div>
             </div>
             <div class="footer">
@@ -239,7 +244,7 @@ export const emailTemplates = {
               <p>Please ensure timely payment to maintain your trust score.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
+                <a href="${getAppUrl()}/dashboard/agreement/${agreementId}" class="button">View Agreement</a>
               </div>
 
               ${upiLink ? `
