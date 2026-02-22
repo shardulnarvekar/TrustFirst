@@ -20,6 +20,7 @@ interface RepaymentEmailProps {
     amount: number;
     upiLink: string;
     qrCodeDataUrl: string;
+    agreementId?: string;
 }
 
 export const RepaymentEmail = ({
@@ -28,6 +29,7 @@ export const RepaymentEmail = ({
     amount,
     upiLink,
     qrCodeDataUrl,
+    agreementId,
 }: RepaymentEmailProps) => {
     const main = {
         backgroundColor: '#f6f9fc',

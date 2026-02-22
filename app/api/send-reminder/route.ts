@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
                         amount,
                         upiLink,
                         qrCodeDataUrl,
+                        agreementId,
                     }),
                 });
             } catch (emailError) {

@@ -1,94 +1,102 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, unlink } from "fs/promises";
-import { join } from "path";
-import { spawn } from "child_process";
-
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(request: NextRequest) {
+    console.log("=== Transaction ID Extraction Started ===");
     try {
         const formData = await request.formData();
         const file = formData.get("file") as File;
 
         if (!file) {
+            console.error("No file in request");
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        console.log("File received:", file.name, "Type:", file.type, "Size:", file.size);
 
-        // Save temp file
-        const tempDir = join(process.cwd(), "tmp");
-        // Ensure tmp dir exists
-        try {
-            await writeFile(join(tempDir, "test"), "");
-        } catch {
-            // If write fails, try to mkdir
-            const fs = require('fs');
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir);
-            }
+        // Check if Gemini API key is available
+        if (!process.env.GEMINI_API_KEY) {
+            console.error("GEMINI_API_KEY is not configured");
+            return NextResponse.json(
+                { error: "Transaction ID extraction service not configured", transactionId: "" },
+                { status: 500 }
+            );
         }
 
-        const tempFilePath = join(tempDir, `upload-${Date.now()}-${file.name}`);
-        await writeFile(tempFilePath, buffer);
+        console.log("Gemini API key found, converting image to base64...");
 
-        // Spawn Python process
-        return new Promise((resolve) => {
-            const pythonProcess = spawn("python", ["scripts/extract_transaction_id.py", tempFilePath]);
+        // Convert file to base64
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const base64Image = buffer.toString('base64');
 
-            let outputData = "";
-            let errorData = "";
+        // Determine mime type
+        const mimeType = file.type || 'image/jpeg';
+        console.log("Image converted, size:", base64Image.length, "bytes, mime:", mimeType);
 
-            pythonProcess.stdout.on("data", (data) => {
-                outputData += data.toString();
+        // Initialize Gemini with the correct model
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        
+        // Use the latest stable flash model for vision tasks
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash"
+        });
+
+        console.log("Gemini model initialized, sending request...");
+
+        // Create the prompt
+        const prompt = `Analyze this payment screenshot and extract the transaction ID or reference number.
+
+Instructions:
+- Look for labels like: "Transaction ID", "Reference Number", "UTR", "Order ID", "Txn ID", "UPI Ref", "Reference ID", etc.
+- Return ONLY the transaction ID number/code, nothing else
+- If you cannot find a transaction ID, return the text "NOT_FOUND"
+- Do not include any explanation or additional text
+
+Transaction ID:`;
+
+        // Generate content with image
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    data: base64Image,
+                    mimeType: mimeType,
+                },
+            },
+        ]);
+
+        console.log("Gemini response received");
+        const response = result.response;
+        const text = response.text().trim();
+        console.log("Extracted text:", text);
+
+        // Check if transaction ID was found
+        if (text === "NOT_FOUND" || !text) {
+            console.log("No transaction ID found in image");
+            return NextResponse.json({
+                transactionId: "",
+                message: "Could not extract transaction ID from image"
             });
+        }
 
-            pythonProcess.stderr.on("data", (data) => {
-                errorData += data.toString();
-            });
-
-            pythonProcess.on("close", async (code) => {
-                // Cleanup temp file
-                try {
-                    await unlink(tempFilePath);
-                } catch (e) {
-                    console.error("Failed to delete temp file", e);
-                }
-
-                if (code !== 0) {
-                    console.error("Python script error:", errorData);
-                    resolve(
-                        NextResponse.json(
-                            { error: "Extraction process failed", details: errorData },
-                            { status: 500 }
-                        )
-                    );
-                    return;
-                }
-
-                try {
-                    const result = JSON.parse(outputData);
-                    if (result.error) {
-                        resolve(NextResponse.json({ error: result.error }, { status: 500 }));
-                    } else {
-                        resolve(NextResponse.json(result));
-                    }
-                } catch (e) {
-                    console.error("Failed to parse Python output:", outputData);
-                    resolve(
-                        NextResponse.json(
-                            { error: "Invalid response from extraction script", details: outputData },
-                            { status: 500 }
-                        )
-                    );
-                }
-            });
+        // Return the extracted transaction ID
+        console.log("Transaction ID successfully extracted:", text);
+        return NextResponse.json({
+            transactionId: text,
+            message: "Transaction ID extracted successfully"
         });
 
     } catch (error: any) {
-        console.error("Extraction Fatal Error:", error);
+        console.error("=== Extraction Error ===");
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
         return NextResponse.json(
-            { error: "Failed to process request", details: error.message },
+            { 
+                error: "Failed to extract transaction ID", 
+                details: error.message,
+                transactionId: ""
+            },
             { status: 500 }
         );
     }

@@ -103,6 +103,7 @@ export default function CreateAgreementPage() {
       // Auto-extract Transaction ID
       if (file.type.startsWith("image/")) {
         setIsExtracting(true)
+        console.log("Starting transaction ID extraction for:", file.name)
         try {
           const data = new FormData()
           data.append("file", file)
@@ -112,17 +113,25 @@ export default function CreateAgreementPage() {
             body: data,
           })
 
+          console.log("API Response status:", res.status)
+          
           if (res.ok) {
-            const data = await res.json()
-            // Python script returns snake_case 'transaction_id', but we support both just in case
-            const extractedId = data.transactionId || data.transaction_id
+            const result = await res.json()
+            console.log("API Response data:", result)
+            const extractedId = result.transactionId
 
-            if (extractedId) {
+            if (extractedId && extractedId.trim() !== "") {
+              console.log("Extracted Transaction ID:", extractedId)
               setFormData((prev) => ({
                 ...prev,
                 transactionId: extractedId,
               }))
+            } else {
+              console.log("No transaction ID found in image")
             }
+          } else {
+            const errorData = await res.json()
+            console.error("Failed to extract transaction ID:", errorData)
           }
         } catch (error) {
           console.error("Extraction failed", error)
